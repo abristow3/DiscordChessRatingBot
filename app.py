@@ -1,9 +1,9 @@
-# bot.py
 import os
 import requests
 import discord
 from dotenv import load_dotenv
 import json
+from discord.ext import tasks
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -20,6 +20,53 @@ ACCOUNT_LINK_CHANNEL = 1213837193643171911
 with open('linked_members.json', 'r') as openfile:
     # Reading from json file
     linked_members = dict(json.load(openfile))
+
+
+@tasks.loop(seconds=60)
+async def task_loop():
+    print("TASK LOOP")
+    for guild in client.guilds:
+        if guild.name == GUILD:
+            break
+
+    for k, v in linked_members.items():
+        member = guild.get_member(k)
+        chess_user = v
+
+        for role in member.roles:
+            if role.name == 'linked-member':
+                user_nick = member.nick.split("|")[0].replace(" ", "")
+                break
+            elif role.name == 'member':
+                user_nick = member.nick
+                break
+
+        # Which game mode tag does the user have?
+        for role in member.roles:
+            if role.name == 'bullet':
+                game_mode = 'bullet'
+                break
+            if role.name == 'blitz':
+                game_mode = 'blitz'
+                break
+            if role.name == 'rapid':
+                game_mode = 'rapid'
+                break
+            if role.name == 'daily':
+                game_mode = 'daily'
+                break
+
+        url = f"https://api.chess.com/pub/player/{chess_user}/stats"
+        headers = {'User-Agent': chess_user}
+        r = requests.get(url=url, headers=headers)
+        rdata = r.json()
+        rating = rdata[f"chess_{game_mode}"]['last']['rating']
+        await member.edit(nick=f"{user_nick} | {game_mode.capitalize()}: {rating}")
+
+
+@client.event
+async def on_ready():
+    task_loop.start()
 
 
 @client.event
@@ -193,27 +240,3 @@ async def on_raw_reaction_remove(payload):
 
 
 client.run(TOKEN)
-
-'''
-When a new player joins, welcome them and give them the role of "member"
-
-
-Chess.com
-When a member reacts to the chess.com emoji message
-figure out which reaction they used
-assign them that role
-give them permissions to type in the channel now - this should be done automatically using role based permissions
-when a message is sent in that channel (should be their chess.com username)
-    fetch their chess.com rating based on the role for the game mode they play
-    give them the role of linked-member and remove regular member
-    send a request to chess.com to get their rating
-    some type of error handling if the response isnt a rating
-    add the rating to their nickname
-    add them to a flat file list of chess.com username and member id for future shcceduled requests
-    delete their message
-    
-schedueled background task, try once a minute to start
-    reads in the linked-members flat file
-    sends requests for each member to update their rating
-    should so this async
-'''
