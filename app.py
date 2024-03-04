@@ -15,7 +15,7 @@ intents.message_content = True
 intents.reactions = True
 
 client = discord.Client(intents=intents)
-NAME_CHANGE_CHANNEL = 1212819469806739486
+NAME_CHANGE_CHANNEL = 1213984133823336498
 ACCOUNT_LINK_CHANNEL = 1213837193643171911
 with open('linked_members.json', 'r') as openfile:
     # Reading from json file
@@ -145,9 +145,11 @@ async def on_message(message):
         url = f"https://api.chess.com/pub/player/{chess_user}/stats"
         headers = {'User-Agent': chess_user}
         r = requests.get(url=url, headers=headers)
-        rdata = r.json()
+        rdata = dict(r.json())
+        rating = rdata.get(f'chess_{game_mode}', {}).get('last', {}).get('rating', '')
 
-        rating = rdata[f"chess_{game_mode}"]['last']['rating']
+        if rating == '' or rating is None:
+            rating = 'Unrated'
         await author.edit(nick=f"{user_nick} | {game_mode.capitalize()}: {rating}")
 
         # Add linked-member role and remove member role
